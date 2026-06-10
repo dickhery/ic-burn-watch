@@ -1,0 +1,39 @@
+// Version: 4.0.0
+type BurnRateSnapshot__215321320 =
+  {
+    cyclesPerDay : Nat;
+    cyclesPerHour : Nat;
+    cyclesPerWeek : Nat;
+    timestamp : Timestamp__301639476
+  };
+type BurnRateSnapshot__630497978 =
+  {
+    cyclesPerDay : Nat;
+    cyclesPerHour : Nat;
+    cyclesPerWeek : Nat;
+    timestamp : Int
+  };
+type List__529703492<T> =
+  {
+    var blockIndex : Nat__1040412405;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__1040412405
+  };
+type List__560604548<T> = List__529703492<T>;
+type Nat__1040412405 = Nat__920180692;
+type Nat__920180692 = Nat;
+type NewActor__322843806 =
+  {snapshots : List__560604548<BurnRateSnapshot__630497978>};
+type OldActor__1049111083 = {};
+type Timestamp__301639476 = Int;
+{
+  "20260610_000000_InitBurnRate" : OldActor__1049111083 -> NewActor__322843806
+}
+actor  {
+  stable snapshots :
+    {
+      var blockIndex : Nat__1040412405;
+      var blocks : [var [var ?BurnRateSnapshot__215321320]];
+      var elementIndex : Nat__1040412405
+    }
+};

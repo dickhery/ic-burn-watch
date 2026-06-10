@@ -1,0 +1,19 @@
+{
+  "overview": "A dashboard that displays the Internet Computer protocol network cycle burn rate with hourly, daily, and weekly views, trend charts, and date range filtering.",
+  "features": [
+    "Display hourly, daily, and weekly cycle burn rates",
+    "Trend charts over time",
+    "Tab controls to switch between time views",
+    "Date range picker with preset quick filters",
+    "Auto-refresh and manual refresh for latest data"
+  ],
+  "category": "dashboard",
+  "tags": [
+    "internet-computer",
+    "cycles",
+    "metrics",
+    "analytics",
+    "dashboard"
+  ],
+  "last_updated": "2026-06-10T01:50:59.832Z"
+}

@@ -1,0 +1,36 @@
+type Timestamp = int;
+type TimeRangeFilter = 
+ record {
+   endTime: opt Timestamp;
+   granularity: Granularity;
+   startTime: opt Timestamp;
+ };
+type Granularity = 
+ variant {
+   daily;
+   hourly;
+   weekly;
+ };
+type BurnRateSummary = 
+ record {
+   current: BurnRateSnapshot;
+   history: vec BurnRateSnapshot;
+ };
+type BurnRateSnapshot = 
+ record {
+   cyclesPerDay: nat;
+   cyclesPerHour: nat;
+   cyclesPerWeek: nat;
+   timestamp: Timestamp;
+ };
+type BurnRateRangeResult = 
+ record {
+   granularity: Granularity;
+   snapshots: vec BurnRateSnapshot;
+ };
+service : {
+  getBurnRateForRange: (filter: TimeRangeFilter) ->
+   (BurnRateRangeResult) query;
+  getBurnRateHistory: () -> (BurnRateSummary) query;
+  getCurrentBurnRates: () -> (BurnRateSnapshot);
+}
