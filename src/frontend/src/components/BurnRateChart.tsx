@@ -1,6 +1,6 @@
 import { formatCycles, formatTimestamp, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { BurnRatePoint, TimeRange } from "@/types/burnRate";
+import type { BurnRatePoint, MetricFocus, TimeRange } from "@/types/burnRate";
 import {
   Area,
   AreaChart,
@@ -14,35 +14,67 @@ import {
 interface BurnRateChartProps {
   data: BurnRatePoint[];
   metric: "cyclesPerHour" | "cyclesPerDay" | "cyclesPerWeek";
+  displayFocus?: MetricFocus;
+  period: "hour" | "day" | "week";
   range: TimeRange;
   loading?: boolean;
   className?: string;
+  "data-ocid"?: string;
 }
 
 function CustomTooltip({
   active,
   payload,
   label,
-  metric,
+  displayFocus,
+  period,
 }: {
   active?: boolean;
-  payload?: { value: number; payload?: { usdValue?: number } }[];
+  payload?: {
+    value: number;
+    payload?: { cyclesValue?: number; usdValue?: number };
+  }[];
   label?: string;
-  metric: string;
+  displayFocus: MetricFocus;
+  period: "hour" | "day" | "week";
 }) {
   if (!active || !payload?.length) return null;
-  const val = payload[0]?.value ?? 0;
+  const cyclesValue = payload[0]?.payload?.cyclesValue ?? 0;
   const usdValue = payload[0]?.payload?.usdValue;
+  const primaryValue =
+    displayFocus === "usd" && usdValue !== undefined
+      ? formatUsd(usdValue, true)
+      : formatCycles(cyclesValue);
+  const primaryUnit =
+    displayFocus === "usd" && usdValue !== undefined
+      ? `USD / ${period}`
+      : `cycles / ${period}`;
+  const secondaryValue =
+    displayFocus === "usd" && usdValue !== undefined
+      ? formatCycles(cyclesValue)
+      : usdValue !== undefined
+        ? formatUsd(usdValue, true)
+        : undefined;
+  const secondaryUnit =
+    displayFocus === "usd" && usdValue !== undefined
+      ? `cycles / ${period}`
+      : usdValue !== undefined
+        ? `USD / ${period}`
+        : undefined;
+
   return (
     <div className="bg-popover border border-border/80 rounded-lg px-3 py-2 shadow-md text-xs font-mono">
       <p className="text-muted-foreground mb-0.5">{label}</p>
-      <p className="text-accent font-bold">{formatCycles(val)}</p>
-      {usdValue !== undefined && (
-        <p className="text-foreground">{formatUsd(usdValue, true)} estimated</p>
-      )}
-      <p className="text-muted-foreground capitalize">
-        {metric.replace("cyclesPer", "per ")}
+      <p className="text-accent font-bold">
+        {primaryValue}{" "}
+        <span className="font-normal text-muted-foreground">{primaryUnit}</span>
       </p>
+      {secondaryValue && (
+        <p className="text-foreground">
+          {secondaryValue}{" "}
+          <span className="text-muted-foreground">{secondaryUnit}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -50,9 +82,12 @@ function CustomTooltip({
 export function BurnRateChart({
   data,
   metric,
+  displayFocus = "usd",
+  period,
   range,
   loading = false,
   className,
+  "data-ocid": ocid,
 }: BurnRateChartProps) {
   const usdMetric =
     metric === "cyclesPerHour"
@@ -60,16 +95,21 @@ export function BurnRateChart({
       : metric === "cyclesPerDay"
         ? "usdPerDay"
         : "usdPerWeek";
+  const hasUsdData = data.some((p) => p[usdMetric] !== undefined);
+  const chartFocus: MetricFocus =
+    displayFocus === "usd" && hasUsdData ? "usd" : "cycles";
   const formatted = data.map((p) => ({
     ...p,
     label: formatTimestamp(p.timestamp, range),
-    value: p[metric],
+    chartValue: chartFocus === "usd" ? (p[usdMetric] ?? 0) : p[metric],
+    cyclesValue: p[metric],
     usdValue: p[usdMetric],
   }));
 
   if (loading) {
     return (
       <div
+        data-ocid={ocid}
         className={cn("h-48 rounded-lg bg-muted/30 animate-pulse", className)}
       />
     );
@@ -78,6 +118,7 @@ export function BurnRateChart({
   if (!data.length) {
     return (
       <div
+        data-ocid={ocid}
         className={cn(
           "h-48 flex items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground text-sm",
           className,
@@ -89,7 +130,7 @@ export function BurnRateChart({
   }
 
   return (
-    <div className={cn("h-48 chart-fade", className)}>
+    <div data-ocid={ocid} className={cn("h-48 chart-fade", className)}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={formatted}
@@ -133,16 +174,20 @@ export function BurnRateChart({
             }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v: number) => formatCycles(v, true)}
-            width={60}
+            tickFormatter={(v: number) =>
+              chartFocus === "usd" ? formatUsd(v, true) : formatCycles(v, true)
+            }
+            width={70}
           />
           <Tooltip
-            content={<CustomTooltip metric={metric} />}
+            content={
+              <CustomTooltip displayFocus={chartFocus} period={period} />
+            }
             cursor={{ stroke: "oklch(0.75 0.15 190 / 0.3)", strokeWidth: 1 }}
           />
           <Area
             type="monotone"
-            dataKey="value"
+            dataKey="chartValue"
             stroke="oklch(0.75 0.15 190)"
             strokeWidth={2}
             fill="url(#burnGradient)"

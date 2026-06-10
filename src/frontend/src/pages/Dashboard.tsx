@@ -3,19 +3,22 @@ import { MetricCard } from "@/components/MetricCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useBurnRateHistory, useCurrentBurnRates } from "@/hooks/useQueries";
 import { formatCycles, formatCyclesLabel, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { DateRange, TimeRange } from "@/types/burnRate";
+import type { DateRange, MetricFocus, TimeRange } from "@/types/burnRate";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   BarChart2,
   Calendar,
   CalendarDays,
   Clock,
+  DollarSign,
+  Gauge,
   RefreshCw,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type ViewMode = "hourly" | "daily" | "weekly";
 
@@ -51,6 +54,36 @@ const QUICK_FILTERS: { label: string; range: TimeRange }[] = [
   { label: "Last 7 Days", range: "7d" },
 ];
 
+const DISPLAY_FOCUS_STORAGE_KEY = "ic-burn-watch.metric-focus";
+
+const DISPLAY_FOCUS_OPTIONS: {
+  value: MetricFocus;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    value: "usd",
+    label: "USD",
+    icon: <DollarSign className="w-3.5 h-3.5" />,
+  },
+  {
+    value: "cycles",
+    label: "Cycles",
+    icon: <Gauge className="w-3.5 h-3.5" />,
+  },
+];
+
+function getInitialDisplayFocus(): MetricFocus {
+  if (typeof window === "undefined") return "usd";
+  try {
+    return window.localStorage.getItem(DISPLAY_FOCUS_STORAGE_KEY) === "cycles"
+      ? "cycles"
+      : "usd";
+  } catch {
+    return "usd";
+  }
+}
+
 function calcTrend(
   current: number,
   prev: number,
@@ -63,6 +96,9 @@ function calcTrend(
 
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>("daily");
+  const [displayFocus, setDisplayFocus] = useState<MetricFocus>(
+    getInitialDisplayFocus,
+  );
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -78,7 +114,7 @@ export default function Dashboard() {
 
   const activeMetric =
     VIEW_MODES.find((v) => v.value === viewMode)?.metric ?? "cyclesPerDay";
-  const _activePeriod: "hour" | "day" | "week" =
+  const activePeriod: "hour" | "day" | "week" =
     viewMode === "hourly" ? "hour" : viewMode === "daily" ? "day" : "week";
 
   const pts = history?.points ?? [];
@@ -91,6 +127,14 @@ export default function Dashboard() {
         : current.cyclesPerWeek
     : 0;
   const { trend, pct } = calcTrend(currValue, prevValue);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DISPLAY_FOCUS_STORAGE_KEY, displayFocus);
+    } catch {
+      // Preference persistence is optional; the visible default remains USD.
+    }
+  }, [displayFocus]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -142,28 +186,56 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Controls row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
-          <Tabs
-            value={viewMode}
-            onValueChange={(v) => setViewMode(v as ViewMode)}
-          >
-            <TabsList
-              className="bg-card border border-border/70"
-              data-ocid="dashboard.view_mode.tab"
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <Tabs
+              value={viewMode}
+              onValueChange={(v) => setViewMode(v as ViewMode)}
             >
-              {VIEW_MODES.map((m) => (
-                <TabsTrigger
-                  key={m.value}
-                  value={m.value}
-                  className="flex items-center gap-1.5 text-xs data-[state=active]:bg-accent/15 data-[state=active]:text-accent data-[state=active]:shadow-none"
-                  data-ocid={`dashboard.view_mode.${m.value}`}
+              <TabsList
+                className="bg-card border border-border/70"
+                data-ocid="dashboard.view_mode.tab"
+              >
+                {VIEW_MODES.map((m) => (
+                  <TabsTrigger
+                    key={m.value}
+                    value={m.value}
+                    className="flex items-center gap-1.5 text-xs data-[state=active]:bg-accent/15 data-[state=active]:text-accent data-[state=active]:shadow-none"
+                    data-ocid={`dashboard.view_mode.${m.value}`}
+                  >
+                    {m.icon}
+                    {m.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            <ToggleGroup
+              type="single"
+              value={displayFocus}
+              onValueChange={(value) => {
+                if (value) setDisplayFocus(value as MetricFocus);
+              }}
+              variant="outline"
+              size="sm"
+              aria-label="Display focus"
+              className="bg-card border-border/70"
+              data-ocid="dashboard.display_focus.toggle"
+            >
+              {DISPLAY_FOCUS_OPTIONS.map((option) => (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className="h-9 min-w-[84px] gap-1.5 border-border/70 px-2.5 text-xs data-[state=on]:bg-accent/15 data-[state=on]:text-accent"
+                  aria-label={`Focus ${option.label}`}
+                  data-ocid={`dashboard.display_focus.${option.value}`}
                 >
-                  {m.icon}
-                  {m.label}
-                </TabsTrigger>
+                  {option.icon}
+                  {option.label}
+                </ToggleGroupItem>
               ))}
-            </TabsList>
-          </Tabs>
+            </ToggleGroup>
+          </div>
 
           <Button
             variant="outline"
@@ -280,25 +352,38 @@ export default function Dashboard() {
               },
             ];
             return cards.map(({ key, cycles, usd, period }) => {
-              const { value, unit } = formatCyclesLabel(cycles, period);
+              const cycleLabel = formatCyclesLabel(cycles, period);
+              const usdValue = usd !== undefined ? formatUsd(usd) : "N/A";
+              const primaryValue =
+                displayFocus === "usd" ? usdValue : cycleLabel.value;
+              const primaryUnit =
+                displayFocus === "usd" ? `USD / ${period}` : cycleLabel.unit;
+              const secondaryValue =
+                displayFocus === "usd"
+                  ? cycleLabel.value
+                  : usd !== undefined
+                    ? formatUsd(usd)
+                    : undefined;
+              const secondaryUnit =
+                displayFocus === "usd"
+                  ? cycleLabel.unit
+                  : usd !== undefined
+                    ? `USD / ${period}`
+                    : undefined;
               const isActive = viewMode === key;
               const cardTrend = isActive ? trend : undefined;
               const cardPct = isActive ? pct : undefined;
-              const sublabel = [
-                usd !== undefined ? `${formatUsd(usd, true)} estimated` : null,
-                isActive ? snapshotLabel : null,
-              ]
-                .filter(Boolean)
-                .join(" | ");
               return (
                 <MetricCard
                   key={key}
                   label={`${key.charAt(0).toUpperCase() + key.slice(1)} Rate`}
-                  value={value}
-                  unit={unit}
+                  primaryValue={primaryValue}
+                  primaryUnit={primaryUnit}
+                  secondaryValue={secondaryValue}
+                  secondaryUnit={secondaryUnit}
                   trend={cardTrend}
                   trendPct={cardPct}
-                  sublabel={sublabel || undefined}
+                  sublabel={isActive ? snapshotLabel : undefined}
                   highlighted={isActive}
                   data-ocid={`dashboard.metric.${key}`}
                 />
@@ -338,6 +423,8 @@ export default function Dashboard() {
           <BurnRateChart
             data={pts}
             metric={activeMetric}
+            displayFocus={displayFocus}
+            period={activePeriod}
             range={timeRange}
             loading={historyLoading}
             data-ocid="dashboard.chart.canvas_target"

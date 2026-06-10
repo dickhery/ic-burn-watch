@@ -3,8 +3,12 @@ import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 interface MetricCardProps {
   label: string;
-  value: string;
-  unit: string;
+  primaryValue?: string;
+  primaryUnit?: string;
+  secondaryValue?: string;
+  secondaryUnit?: string;
+  value?: string;
+  unit?: string;
   trend?: "up" | "down" | "flat";
   trendPct?: number;
   sublabel?: string;
@@ -22,6 +26,10 @@ function TrendIcon({ trend }: { trend?: "up" | "down" | "flat" }) {
 
 export function MetricCard({
   label,
+  primaryValue,
+  primaryUnit,
+  secondaryValue,
+  secondaryUnit,
   value,
   unit,
   trend,
@@ -31,6 +39,9 @@ export function MetricCard({
   loading = false,
   "data-ocid": ocid,
 }: MetricCardProps) {
+  const displayValue = primaryValue ?? value ?? "";
+  const displayUnit = primaryUnit ?? unit ?? "";
+
   return (
     <div
       data-ocid={ocid}
@@ -72,21 +83,31 @@ export function MetricCard({
         </div>
       ) : (
         <>
-          <div className="flex items-end gap-2">
+          <div className="flex min-w-0 items-end gap-2">
             <span
               className={cn(
-                "font-display font-bold leading-none tracking-tight",
+                "min-w-0 break-words font-display font-bold leading-none tracking-tight",
                 highlighted
                   ? "text-3xl text-accent"
                   : "text-2xl text-foreground",
               )}
             >
-              {value}
+              {displayValue}
             </span>
-            <span className="text-xs font-mono text-muted-foreground pb-0.5">
-              {unit}
-            </span>
+            {displayUnit && (
+              <span className="shrink-0 pb-0.5 text-xs font-mono text-muted-foreground">
+                {displayUnit}
+              </span>
+            )}
           </div>
+          {secondaryValue && (
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+              <span className="min-w-0 break-words font-mono font-medium text-foreground/80">
+                {secondaryValue}
+              </span>
+              {secondaryUnit && <span>{secondaryUnit}</span>}
+            </div>
+          )}
           {sublabel && (
             <p className="text-xs text-muted-foreground">{sublabel}</p>
           )}

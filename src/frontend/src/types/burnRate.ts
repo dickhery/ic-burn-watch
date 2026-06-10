@@ -1,4 +1,5 @@
 export type TimeRange = "1h" | "24h" | "7d" | "custom";
+export type MetricFocus = "usd" | "cycles";
 
 export interface BurnRatePoint {
   timestamp: number; // Unix ms
