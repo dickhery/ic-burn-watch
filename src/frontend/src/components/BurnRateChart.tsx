@@ -1,4 +1,4 @@
-import { formatCycles, formatTimestamp } from "@/lib/format";
+import { formatCycles, formatTimestamp, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BurnRatePoint, TimeRange } from "@/types/burnRate";
 import {
@@ -26,16 +26,20 @@ function CustomTooltip({
   metric,
 }: {
   active?: boolean;
-  payload?: { value: number }[];
+  payload?: { value: number; payload?: { usdValue?: number } }[];
   label?: string;
   metric: string;
 }) {
   if (!active || !payload?.length) return null;
   const val = payload[0]?.value ?? 0;
+  const usdValue = payload[0]?.payload?.usdValue;
   return (
     <div className="bg-popover border border-border/80 rounded-lg px-3 py-2 shadow-md text-xs font-mono">
       <p className="text-muted-foreground mb-0.5">{label}</p>
       <p className="text-accent font-bold">{formatCycles(val)}</p>
+      {usdValue !== undefined && (
+        <p className="text-foreground">{formatUsd(usdValue, true)} estimated</p>
+      )}
       <p className="text-muted-foreground capitalize">
         {metric.replace("cyclesPer", "per ")}
       </p>
@@ -50,10 +54,17 @@ export function BurnRateChart({
   loading = false,
   className,
 }: BurnRateChartProps) {
+  const usdMetric =
+    metric === "cyclesPerHour"
+      ? "usdPerHour"
+      : metric === "cyclesPerDay"
+        ? "usdPerDay"
+        : "usdPerWeek";
   const formatted = data.map((p) => ({
     ...p,
     label: formatTimestamp(p.timestamp, range),
     value: p[metric],
+    usdValue: p[usdMetric],
   }));
 
   if (loading) {

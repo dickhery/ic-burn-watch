@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBurnRateHistory, useCurrentBurnRates } from "@/hooks/useQueries";
-import { formatCyclesLabel } from "@/lib/format";
+import { formatCycles, formatCyclesLabel, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DateRange, TimeRange } from "@/types/burnRate";
 import { useQueryClient } from "@tanstack/react-query";
@@ -110,6 +110,11 @@ export default function Dashboard() {
   const snapshotLabel = current?.snapshotAt
     ? `Snapshot ${new Date(current.snapshotAt).toLocaleTimeString()}`
     : "";
+  const sourceLabel = current
+    ? current.source === "metrics-api"
+      ? "IC Metrics API"
+      : "Local estimate"
+    : "Loading";
 
   return (
     <div data-ocid="dashboard.page">
@@ -130,7 +135,7 @@ export default function Dashboard() {
           </div>
           <p className="text-sm text-muted-foreground max-w-xl">
             Real-time cycle consumption metrics for the Internet Computer
-            network, queried directly from the IC management canister.
+            network, sourced from the public IC Metrics API.
           </p>
         </div>
       </section>
@@ -252,29 +257,39 @@ export default function Dashboard() {
             const cards: {
               key: ViewMode;
               cycles: number;
+              usd?: number;
               period: "hour" | "day" | "week";
             }[] = [
               {
                 key: "hourly",
                 cycles: current?.cyclesPerHour ?? 0,
+                usd: current?.usdPerHour,
                 period: "hour",
               },
               {
                 key: "daily",
                 cycles: current?.cyclesPerDay ?? 0,
+                usd: current?.usdPerDay,
                 period: "day",
               },
               {
                 key: "weekly",
                 cycles: current?.cyclesPerWeek ?? 0,
+                usd: current?.usdPerWeek,
                 period: "week",
               },
             ];
-            return cards.map(({ key, cycles, period }) => {
+            return cards.map(({ key, cycles, usd, period }) => {
               const { value, unit } = formatCyclesLabel(cycles, period);
               const isActive = viewMode === key;
               const cardTrend = isActive ? trend : undefined;
               const cardPct = isActive ? pct : undefined;
+              const sublabel = [
+                usd !== undefined ? `${formatUsd(usd, true)} estimated` : null,
+                isActive ? snapshotLabel : null,
+              ]
+                .filter(Boolean)
+                .join(" | ");
               return (
                 <MetricCard
                   key={key}
@@ -283,7 +298,7 @@ export default function Dashboard() {
                   unit={unit}
                   trend={cardTrend}
                   trendPct={cardPct}
-                  sublabel={isActive ? snapshotLabel : undefined}
+                  sublabel={sublabel || undefined}
                   highlighted={isActive}
                   data-ocid={`dashboard.metric.${key}`}
                 />
@@ -340,14 +355,25 @@ export default function Dashboard() {
         </section>
 
         {/* Network info footer */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <section className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           {[
             {
               label: "Data Source",
-              value: "IC Management Canister (aaaaa-aa)",
+              value: sourceLabel,
+            },
+            {
+              label: "Current Rate",
+              value: current
+                ? `${formatCycles(current.cyclesPerSecond, true)} cycles / sec`
+                : "Loading",
             },
             { label: "Update Frequency", value: "Every 30 seconds" },
-            { label: "Network", value: "Internet Computer Mainnet" },
+            {
+              label: "USD Estimate",
+              value: current?.usdPerXdr
+                ? `${formatUsd(current.usdPerXdr)} / XDR`
+                : "1T cycles = 1 XDR",
+            },
           ].map((item) => (
             <div
               key={item.label}

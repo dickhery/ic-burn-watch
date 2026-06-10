@@ -41,9 +41,7 @@ export function Layout({ children }: LayoutProps) {
               caffeine.ai
             </a>
           </span>
-          <span className="font-mono">
-            Data sourced from IC Management Canister
-          </span>
+          <span className="font-mono">Data sourced from IC Metrics API</span>
         </div>
       </footer>
     </div>
